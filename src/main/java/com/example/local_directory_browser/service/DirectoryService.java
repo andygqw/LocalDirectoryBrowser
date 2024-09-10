@@ -1,5 +1,6 @@
 package com.example.local_directory_browser.service;
 
+import com.example.local_directory_browser.model.DirectoryDTO;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -12,31 +13,31 @@ public class DirectoryService {
 
     private final static String BASE = "";
 
-    public List<String> listFilesRecursively(String directoryPath) throws FileNotFoundException {
-        List<String> files = new ArrayList<>();
+    public DirectoryDTO listFilesRecursively(String directoryPath) throws FileNotFoundException {
+        DirectoryDTO files = new DirectoryDTO(directoryPath);
         File directory = new File(directoryPath);
 
         if (directory.exists() && directory.isDirectory()) {
             browseDirectory(directory, files);
         } else {
-            throw new FileNotFoundException(directoryPath);
+            throw new FileNotFoundException("File.exists(): " + directoryPath);
         }
-
         return files;
     }
 
-    private void browseDirectory(File directory, List<String> files) {
+    private void browseDirectory(File directory, DirectoryDTO files) throws FileNotFoundException {
         File[] fileList = directory.listFiles();
 
         if (fileList != null) {
             for (File file : fileList) {
                 if (file.isFile()) {
-                    files.add("File: " + file.getAbsolutePath());
+                    files.addFile(file.getName(), file.getAbsolutePath());
                 } else if (file.isDirectory()) {
-                    files.add("Directory: " + file.getAbsolutePath());
-                    browseDirectory(file, files); // Recursively call for sub-directories
+                    files.addDirectory(file.getAbsolutePath());
                 }
             }
+        } else {
+            throw new FileNotFoundException("File.listFiles(): " + directory.getAbsolutePath());
         }
     }
 }
