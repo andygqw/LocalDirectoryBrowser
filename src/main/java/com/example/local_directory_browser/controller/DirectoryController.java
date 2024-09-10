@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.FileNotFoundException;
 import java.util.List;
 
 @RestController
@@ -20,8 +21,8 @@ public class DirectoryController {
         this.directoryService = directoryService;
     }
 
-    @GetMapping("/")
-    public List<String> browseDirectory(@RequestParam String path) {
+    @GetMapping
+    public List<String> browseDirectory(@RequestParam String path) throws FileNotFoundException {
         return directoryService.listFilesRecursively(path);
     }
 }
