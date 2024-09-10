@@ -24,7 +24,7 @@ public class DirectoryController {
     }
 
     @GetMapping
-    public ResponseEntity<DirectoryDTO> browseDirectory(@RequestParam String path) throws FileNotFoundException {
+    public ResponseEntity<DirectoryDTO> browseDirectory(@RequestParam(value="path",required = false) String path) throws FileNotFoundException {
         return new ResponseEntity<>(directoryService.listFilesRecursively(path), HttpStatus.OK);
     }
 }
