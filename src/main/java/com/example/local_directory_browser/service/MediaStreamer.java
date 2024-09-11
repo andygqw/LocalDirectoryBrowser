@@ -8,5 +8,5 @@ import java.util.List;
 
 public interface MediaStreamer {
 
-    public ResponseEntity<StreamingResponseBody> streamMedia(String filepath, String mediaType, List<HttpRange> ranges);
+    public ResponseEntity<byte[]> streamMedia(String filepath, String mediaType, String ranges);
 }
