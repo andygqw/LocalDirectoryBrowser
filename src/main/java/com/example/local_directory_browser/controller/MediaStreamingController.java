@@ -1,7 +1,10 @@
 package com.example.local_directory_browser.controller;
 
 import com.example.local_directory_browser.service.MediaStreamer;
+import com.example.local_directory_browser.service.PdfStreamingService;
+import com.example.local_directory_browser.service.StrategyFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRange;
 import org.springframework.http.HttpStatus;
@@ -10,46 +13,44 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
 
 @RestController
 @RequestMapping("/media")
 @CrossOrigin(origins = "*")
 public class MediaStreamingController {
 
-    private final MediaStreamer mediaStreamingService;
+    private final StrategyFactory factory;
 
     @Autowired
-    public MediaStreamingController(MediaStreamer mediaStreamingService) {
-        this.mediaStreamingService = mediaStreamingService;
+    public MediaStreamingController(StrategyFactory factory) {
+        this.factory = factory;
     }
 
     @GetMapping("/video")
     public ResponseEntity<StreamingResponseBody> streamVideo(@RequestParam String filename,
                                                              @RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader) {
-        return mediaStreamingService.streamMedia(filename, getFileExtension(filename), rangeHeader);
+
+        MediaStreamer mediaStreamer = factory.getStrategy("MediaStreamingService");
+        return mediaStreamer.streamMedia(filename, getFileExtension(filename), rangeHeader);
     }
 
     @GetMapping("/audio")
     public ResponseEntity<StreamingResponseBody> streamAudio(@RequestParam String filename,
                                                              @RequestHeader(value = HttpHeaders.RANGE, required = false) String ranges) {
-        return mediaStreamingService.streamMedia(filename, "audio/mpeg", ranges);
+        MediaStreamer mediaStreamer = factory.getStrategy("MediaStreamingService");
+        return mediaStreamer.streamMedia(filename, "audio/mpeg", ranges);
     }
 
     @GetMapping("/image")
     public ResponseEntity<StreamingResponseBody> streamImage(@RequestParam String filename) {
-        return mediaStreamingService.streamMedia(filename, "image/jpeg", null);
+        MediaStreamer mediaStreamer = factory.getStrategy("MediaStreamingService");
+        return mediaStreamer.streamMedia(filename, "image/jpeg", null);
     }
 
     @GetMapping("/pdf")
     public ResponseEntity<StreamingResponseBody> streamPdf(@RequestParam String filename) {
-        return mediaStreamingService.streamMedia(filename, "application/pdf", null);
+        MediaStreamer mediaStreamer = factory.getStrategy("PdfStreamingService");
+        return mediaStreamer.streamMedia(filename, "application/pdf", null);
     }
 
     private static String getFileExtension(String filePath) {

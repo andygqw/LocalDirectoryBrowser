@@ -13,7 +13,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
-@Service
+@Service("MediaStreamingService")
 public class MediaStreamingService implements MediaStreamer{
 
     private final static long CHUNK_SIZE = 314700;
