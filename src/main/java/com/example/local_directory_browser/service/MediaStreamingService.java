@@ -1,7 +1,5 @@
 package com.example.local_directory_browser.service;
 
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.ResourceLoader;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRange;
 import org.springframework.http.HttpStatus;
@@ -10,72 +8,105 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 @Service
 public class MediaStreamingService implements MediaStreamer{
 
-    private final ResourceLoader resourceLoader;
     private final static long CHUNK_SIZE = 314700;
     private static final String VIDEO_CONTENT = "video/";
 
-    public MediaStreamingService(ResourceLoader resourceLoader) {
-        this.resourceLoader = resourceLoader;
+    public MediaStreamingService() {
     }
-
-    private byte[] readByteRange(String filename, long start, long end) throws IOException {
-        try (RandomAccessFile file = new RandomAccessFile(filename, "r")) {
-            file.seek(start);  // Move to the start position
-            byte[] data = new byte[(int) (end - start + 1)];  // Read only the requested range
-            file.readFully(data);
-            return data;
-        }
-    }
-
 
     @Override
-    public ResponseEntity<byte[]> streamMedia(String filepath, String mediaType, String range) {
-        try {
-            File file = new File(filepath);
-            if (!file.exists()) {
-                throw new FileNotFoundException(filepath);
+    public ResponseEntity<StreamingResponseBody> streamMedia(String filePathString, String mediaType, String rangeHeader) {
+        try
+        {
+            StreamingResponseBody responseStream;
+            Path filePath = Paths.get(filePathString);
+            Long fileSize = Files.size(filePath);
+            byte[] buffer = new byte[1024];
+            final HttpHeaders responseHeaders = new HttpHeaders();
+
+            if (rangeHeader == null)
+            {
+                responseHeaders.add("Content-Type", VIDEO_CONTENT + mediaType);
+                responseHeaders.add("Content-Length", fileSize.toString());
+                responseStream = os -> {
+                    RandomAccessFile file = new RandomAccessFile(filePathString, "r");
+                    try (file)
+                    {
+                        long pos = 0;
+                        file.seek(pos);
+                        while (pos < fileSize - 1)
+                        {
+                            file.read(buffer);
+                            os.write(buffer);
+                            pos += buffer.length;
+                        }
+                        os.flush();
+                    } catch (Exception e) {}
+                };
+
+                return new ResponseEntity<StreamingResponseBody>
+                        (responseStream, responseHeaders, HttpStatus.OK);
             }
 
-            final long fileSize = file.length();
-            long rangeStart = 0;
-            long rangeEnd = CHUNK_SIZE;
+            String[] ranges = rangeHeader.split("-");
+            Long rangeStart = Long.parseLong(ranges[0].substring(6));
+            Long rangeEnd;
+            if (ranges.length > 1)
+            {
+                rangeEnd = Long.parseLong(ranges[1]);
+            }
+            else
+            {
+                rangeEnd = fileSize - 1;
+            }
 
-            if (range == null) {
-                rangeEnd = Math.min(CHUNK_SIZE, fileSize - 1);  // Adjust range end to file size
-            } else {
-                String[] ranges = range.split("-");
-                rangeStart = Long.parseLong(ranges[0].substring(6));  // Start of the range
-                if (ranges.length > 1) {
-                    rangeEnd = Long.parseLong(ranges[1]);
-                } else {
-                    rangeEnd = rangeStart + CHUNK_SIZE;
+            if (fileSize < rangeEnd)
+            {
+                rangeEnd = fileSize - 1;
+            }
+
+            String contentLength = String.valueOf((rangeEnd - rangeStart) + 1);
+            responseHeaders.add("Content-Type", VIDEO_CONTENT + mediaType);
+            responseHeaders.add("Content-Length", contentLength);
+            responseHeaders.add("Accept-Ranges", "bytes");
+            responseHeaders.add("Content-Range", "bytes" + " " +
+                    rangeStart + "-" + rangeEnd + "/" + fileSize);
+            final Long _rangeEnd = rangeEnd;
+            responseStream = os -> {
+                RandomAccessFile file = new RandomAccessFile(filePathString, "r");
+                try (file)
+                {
+                    long pos = rangeStart;
+                    file.seek(pos);
+                    while (pos < _rangeEnd)
+                    {
+                        file.read(buffer);
+                        os.write(buffer);
+                        pos += buffer.length;
+                    }
+                    os.flush();
                 }
-                rangeEnd = Math.min(rangeEnd, fileSize - 1);  // Adjust range end to file size
-            }
+                catch (Exception e) {}
+            };
 
-            final byte[] data = readByteRange(filepath, rangeStart, rangeEnd);
-            final String contentLength = String.valueOf((rangeEnd - rangeStart) + 1);
-            HttpStatus httpStatus = HttpStatus.PARTIAL_CONTENT;
-
-            // Adjust status if this is the last chunk
-            if (rangeEnd >= fileSize - 1) {
-                httpStatus = HttpStatus.OK;
-            }
-
-            return ResponseEntity.status(httpStatus)
-                    .header(HttpHeaders.CONTENT_TYPE, VIDEO_CONTENT + mediaType)
-                    .header(HttpHeaders.ACCEPT_RANGES, "bytes")
-                    .header(HttpHeaders.CONTENT_LENGTH, contentLength)
-                    .header(HttpHeaders.CONTENT_RANGE, "bytes " + rangeStart + "-" + rangeEnd + "/" + fileSize)
-                    .body(data);
-
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
+            return new ResponseEntity<StreamingResponseBody>
+                    (responseStream, responseHeaders, HttpStatus.PARTIAL_CONTENT);
+        }
+        catch (FileNotFoundException e)
+        {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+        catch (IOException e)
+        {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 }

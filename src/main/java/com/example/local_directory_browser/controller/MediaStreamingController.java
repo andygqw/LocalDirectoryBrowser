@@ -4,11 +4,18 @@ import com.example.local_directory_browser.service.MediaStreamer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRange;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 @RestController
@@ -24,25 +31,24 @@ public class MediaStreamingController {
     }
 
     @GetMapping("/video")
-    public ResponseEntity<byte[]> streamVideo(@RequestParam String filename,
+    public ResponseEntity<StreamingResponseBody> streamVideo(@RequestParam String filename,
                                                              @RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader) {
-
         return mediaStreamingService.streamMedia(filename, getFileExtension(filename), rangeHeader);
     }
 
     @GetMapping("/audio")
-    public ResponseEntity<byte[]> streamAudio(@RequestParam String filename,
+    public ResponseEntity<StreamingResponseBody> streamAudio(@RequestParam String filename,
                                                              @RequestHeader(value = HttpHeaders.RANGE, required = false) String ranges) {
         return mediaStreamingService.streamMedia(filename, "audio/mpeg", ranges);
     }
 
     @GetMapping("/image")
-    public ResponseEntity<byte[]> streamImage(@RequestParam String filename) {
+    public ResponseEntity<StreamingResponseBody> streamImage(@RequestParam String filename) {
         return mediaStreamingService.streamMedia(filename, "image/jpeg", null);
     }
 
     @GetMapping("/pdf")
-    public ResponseEntity<byte[]> streamPdf(@RequestParam String filename) {
+    public ResponseEntity<StreamingResponseBody> streamPdf(@RequestParam String filename) {
         return mediaStreamingService.streamMedia(filename, "application/pdf", null);
     }
 
